@@ -1,35 +1,39 @@
     package com.pandya.atman.firstsunshine;
 
+    import android.content.Intent;
     import android.net.Uri;
-import android.os.AsyncTask;
-import android.os.Bundle;
-import android.support.v4.app.Fragment;
-import android.util.Log;
-import android.view.LayoutInflater;
-import android.view.Menu;
-import android.view.MenuInflater;
-import android.view.MenuItem;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
-import android.widget.ListView;
+    import android.os.AsyncTask;
+    import android.os.Bundle;
+    import android.support.v4.app.Fragment;
+    import android.support.v4.widget.SwipeRefreshLayout;
+    import android.util.Log;
+    import android.view.LayoutInflater;
+    import android.view.Menu;
+    import android.view.MenuInflater;
+    import android.view.MenuItem;
+    import android.view.View;
+    import android.view.ViewGroup;
+    import android.widget.AdapterView;
+    import android.widget.ArrayAdapter;
+    import android.widget.ListView;
+    import android.widget.Toast;
 
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
+    import org.json.JSONArray;
+    import org.json.JSONException;
+    import org.json.JSONObject;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.GregorianCalendar;
-import java.util.List;
+    import java.io.BufferedReader;
+    import java.io.IOException;
+    import java.io.InputStream;
+    import java.io.InputStreamReader;
+    import java.net.HttpURLConnection;
+    import java.net.URL;
+    import java.text.SimpleDateFormat;
+    import java.util.ArrayList;
+    import java.util.Arrays;
+    import java.util.Date;
+    import java.util.GregorianCalendar;
+    import java.util.List;
 
 
     /**
@@ -38,6 +42,8 @@ import java.util.List;
 public class ForecastFragment extends Fragment {
 
         private ArrayAdapter<String> mForecastAdapter;
+        private SwipeRefreshLayout mSwipeRefreshLayout = null;
+        private String areaCode = "524901";
 
     public ForecastFragment() {
     }
@@ -59,7 +65,7 @@ public class ForecastFragment extends Fragment {
         int id = item.getItemId();
         if(id == R.id.action_refresh){
             FetchWeatherTask obj = new FetchWeatherTask();
-            obj.execute("524901");
+            obj.execute(areaCode);
             
             return true;
         }
@@ -76,21 +82,10 @@ public class ForecastFragment extends Fragment {
                 "Mon 6/23 - Sunny - 31/17",
                 "Tue 6/24 - Foggy - 21/8",
                 "Wed 6/25 - Cloudy - 22/17",
-                "Thurs 6/26 - Rainy - 18/11",
-                "Fri 6/27 - Foggy - 21/10",
-                "Sat 6/28 - TRAPPED IN WEATHERSTATION - 23/18",
-                "Sun 6/29 - Sunny - 20/7",
-                "Mon 6/23 - Sunny - 31/17",
-                "Tue 6/24 - Foggy - 21/8",
-                "Wed 6/25 - Cloudy - 22/17",
-                "Thurs 6/26 - Rainy - 18/11",
-                "Fri 6/27 - Foggy - 21/10",
-                "Sat 6/28 - TRAPPED IN WEATHERSTATION - 23/18",
-                "Sun 6/29 - Sunny - 20/7",
-
+                "Thurs 6/26 - Rainy - 18/11"
             };
 
-            List<String> weekForecast = new ArrayList<String>(Arrays.asList(data));
+            final List<String> weekForecast = new ArrayList<String>(Arrays.asList(data));
 
             mForecastAdapter = new ArrayAdapter<String>(
                                             getActivity(),
@@ -100,6 +95,31 @@ public class ForecastFragment extends Fragment {
 
             ListView listView =  (ListView) rootView.findViewById(R.id.listview_forecast);
             listView.setAdapter(mForecastAdapter);
+
+            //Swipe down to refresh
+            mSwipeRefreshLayout = (SwipeRefreshLayout) rootView.findViewById(R.id.fragment_container);
+            mSwipeRefreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener(){
+                @Override
+                public void onRefresh(){
+                    new FetchWeatherTask().execute(areaCode);
+                }
+            });
+
+            //Set item click listener to navigate to detail activity
+            listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+                @Override
+                public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                    //Display Toast for onClick
+                    String forecast = mForecastAdapter.getItem(position);
+                    Toast clickedToast = Toast.makeText(getActivity(),"You have clicked: "+forecast, Toast.LENGTH_SHORT);
+                    clickedToast.show();
+
+                    Intent viewDetailsIntent = new Intent(getActivity(),DetailActivity.class)
+                            .putExtra(Intent.EXTRA_TEXT,forecast);
+
+                    startActivity(viewDetailsIntent);
+                }
+            });
 
             return rootView;
         }
@@ -237,15 +257,12 @@ public class ForecastFragment extends Fragment {
                         .authority(FORECAST_URL_AUTHORITY)
                         .appendPath("data").appendPath("2.5").appendPath("forecast").appendPath("daily?")
                         .appendQueryParameter(PARAM_QUERY, params[0])
-                        //.appendQueryParameter("APPID", "7f688492276261ae6a6189b61774361d");
                         .appendQueryParameter(PARAM_FORMAT, format)
                         .appendQueryParameter(PARAM_UNITS,units)
                         .appendQueryParameter(PARAM_DAYS,Integer.toString(numDays)).build();
 
                 URL url = new URL("http://api.openweathermap.org/data/2.5/forecast/city?id=524901");
                 URL urlNew = new URL(builtUri.toString());
-                Log.v(LOG_TAG, builtUri.toString());
-                Log.v(LOG_TAG,url.toString());
 
                 // Create the request to OpenWeatherMap, and open the connection
                 urlConnection = (HttpURLConnection) urlNew.openConnection();
@@ -304,9 +321,12 @@ public class ForecastFragment extends Fragment {
             if (result != null) {
                 mForecastAdapter.clear();
                 for(String dayForecastStr : result) {
-                    mForecastAdapter.add(dayForecastStr);
+                    mForecastAdapter.addAll(dayForecastStr);
                 }
-                // New data is back from the server.  Hooray!
+                //To stop the swipe-to-refresh icon
+                if (mSwipeRefreshLayout.isRefreshing()) {
+                    mSwipeRefreshLayout.setRefreshing(false);
+                }
             }
         }
     }

@@ -1,32 +1,31 @@
 package com.pandya.atman.firstsunshine;
 
-import android.content.Intent;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.v7.app.ActionBarActivity;
 import android.view.Menu;
 import android.view.MenuItem;
 
 
-public class MainActivity extends ActionBarActivity {
+public class SettingsActivity extends ActionBarActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
 
-        if (savedInstanceState == null) {
-            getSupportFragmentManager().beginTransaction()
-                    .add(R.id.container, new ForecastFragment())
-                    .commit();
-        }
-        setContentView(R.layout.activity_main);
+        setContentView(R.layout.activity_settings);
+
+        PreferenceManager.setDefaultValues(this, R.xml.preferences, false);
+        // Display the fragment as the main content.
+        getFragmentManager().beginTransaction()
+                .replace(R.id.settingsContainer, new SettingsActivityFragment())
+                .commit();
     }
-
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.menu_main, menu);
+        getMenuInflater().inflate(R.menu.menu_settings, menu);
         return true;
     }
 
@@ -39,8 +38,6 @@ public class MainActivity extends ActionBarActivity {
 
         //noinspection SimplifiableIfStatement
         if (id == R.id.action_settings) {
-            Intent settingsIntent = new Intent(this,SettingsActivity.class);
-            startActivity(settingsIntent);
             return true;
         }
 
